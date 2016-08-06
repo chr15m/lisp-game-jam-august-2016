@@ -24,6 +24,13 @@
 
 (def default-style {:fill "none" :stroke "#41A4E6" :stroke-width "1px" :stroke-linecap "round"})
 
+(def colors {:red "#41A4E6"
+             :orange "#E6A441"
+             :yellow "#41A4E6"
+             :blue "#41A4E6"
+             :green "#41A4E6"
+             :purple "#41A4E6"})
+
 ;; -------------------------
 ;; Components
 
@@ -48,16 +55,18 @@
    [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d ""}]])
 
 (defn component-code-input [changes code]
-  [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
+  [:textarea {:id "code-input" :cols 10 :rows 5 :resize "none" :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
 
 (defn component-oglo [changes code rendered-path size]
   (let [[ow oh] (map #(/ % 2) @size)]
     [:div
      [:svg {:width "100%" :height "100%" :style {:top "0px" :left "0px" :position "absolute"}}
       [:defs
-        (component-svg-filter-glow)
-        (component-svg-pattern-hatch)]
+       (component-svg-filter-glow)
+       (component-svg-pattern-hatch)]
       [:g {:transform (str "translate(" ow "," oh ")") :filter "url(#glowfilter)"}
+       (if (or (not @code) (= @code ""))
+         [:text {:x 0 :y 80 :text-anchor "middle" :font-family "snap.seregular" :font-size "3em" :fill "#eee" :stroke "#eee" :stroke-width 2 :stroke-linejoin "round"} "oglo"])
        [component-svg-turtle [0 0]]
        [component-svg-code-rendered rendered-path]]]
      [component-code-input changes code]]))

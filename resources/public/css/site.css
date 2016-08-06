@@ -35,4 +35,7 @@ a:hover {
   padding: 0.5em;
   border-radius: 3px;
   font-size: 1.25em;
+  font-family: "snap.seregular", sans-serif;
+  text-shadow: #EEEEEE 0 0 10px;
+  filter: glow(color=#EEEE00,strength=3);
 }
