@@ -1,5 +1,5 @@
-(ns cotr-mons.repl
-  (:use cotr-mons.handler
+(ns oglo.repl
+  (:use oglo.handler
         ring.server.standalone
         [ring.middleware file-info file]))
 

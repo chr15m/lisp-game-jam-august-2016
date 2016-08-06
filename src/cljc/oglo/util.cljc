@@ -1,4 +1,4 @@
-(ns cotr-mons.util)
+(ns oglo.util)
 
 (defn foo-cljc [x]
   "I don't do a whole lot."
