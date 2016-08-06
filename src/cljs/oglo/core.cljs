@@ -1,7 +1,8 @@
 (ns oglo.core
     (:require [reagent.core :as reagent :refer [atom]]
               [cljs.core.async :refer [<! put! timeout chan] :as async])
-    (:require-macros [cljs.core.async.macros :refer [go go-loop]]))
+    (:require-macros [cljs.core.async.macros :refer [go go-loop]]
+                     [oglo.util :refer [pre-markdown]]))
 
 ;; -------------------------
 ;; Functions
@@ -55,21 +56,38 @@
    [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d ""}]])
 
 (defn component-code-input [changes code]
-  [:textarea {:id "code-input" :cols 10 :rows 5 :resize "none" :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
+  [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
+
+(defn component-svg-start-help [help oh ow]
+  (if help
+    [:text {:x 0 :y 80 :text-anchor "middle" :font-family "snap.seregular" :font-size "3em" :fill "#eee" :stroke "#eee" :stroke-width 2 :stroke-linejoin "round"} "oglo"]))
+
+(defn component-start-help [help]
+  (if help
+    [:div#start-help "<- type code here"]))
+
+(defn component-help []
+  (let [v (atom false)]
+    (fn []
+      [:div
+       (when @v [:div#help-text {:dangerouslySetInnerHTML  {:__html (pre-markdown "Help.md")}}])
+       [:a {:id "help" :on-click #(swap! v not)} "?"]])))
 
 (defn component-oglo [changes code rendered-path size]
-  (let [[ow oh] (map #(/ % 2) @size)]
+  (let [[ow oh] (map #(/ % 2) @size)
+        help (or (not @code) (= @code ""))]
     [:div
      [:svg {:width "100%" :height "100%" :style {:top "0px" :left "0px" :position "absolute"}}
       [:defs
        (component-svg-filter-glow)
        (component-svg-pattern-hatch)]
       [:g {:transform (str "translate(" ow "," oh ")") :filter "url(#glowfilter)"}
-       (if (or (not @code) (= @code ""))
-         [:text {:x 0 :y 80 :text-anchor "middle" :font-family "snap.seregular" :font-size "3em" :fill "#eee" :stroke "#eee" :stroke-width 2 :stroke-linejoin "round"} "oglo"])
+       [component-svg-start-help help oh ow]
        [component-svg-turtle [0 0]]
        [component-svg-code-rendered rendered-path]]]
-     [component-code-input changes code]]))
+     [component-help]
+     [component-code-input changes code]
+     [component-start-help help]]))
 
 ;; -------------------------
 ;; Initialize app

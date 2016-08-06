@@ -17,6 +17,7 @@
                  [org.clojure/core.async "0.2.374"]
                  [org.clojure/clojurescript "1.9.93"
                   :scope "provided"]
+                 [markdown-clj "0.9.89"]
                  [secretary "1.2.3"]
                  [venantius/accountant "0.1.7"
                   :exclusions [org.clojure/tools.reader]]]
