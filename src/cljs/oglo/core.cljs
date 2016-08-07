@@ -18,32 +18,37 @@
   (let [a (or (get args 0) 1)]
     [(assoc state :angle (direction (state :angle) (* (/ m.PI 2) a))) nil]))
 
+(defn pen-fn [pen state args]
+  [(assoc state :pen false) nil])
+
 (def fns
-  {"f" (fn [{:keys [pos angle] :as state} args]
+  {"f" (fn [{:keys [pos angle pen] :as state} args]
          (let [d (or (get args 0) 1)
                xn (+ (* (m.sin angle) d step) (get pos 0))
                yn (+ (* (m.cos angle) d step) (get pos 1))]
-         [(assoc state :pos [xn yn]) ["L" xn yn]]))
+         [(assoc state :pos [xn yn]) [(if pen "L" "M") xn yn]]))
    "r" (partial turn-fn +)
    "l" (partial turn-fn -)
+   "u" (partial pen-fn false)
+   "d" (partial pen-fn true)
    nil (fn [state args] [state nil])})
 
-(defn path-render [new-code]
-  (let [lines (clojure.string/split new-code #"\r?\n")]
+(defn path-render [old-state code]
+  (let [lines (clojure.string/split code #"\r?\n")]
     (loop [l lines
            path [["M" 0 0]]
-           state {:pos [0 0] :angle 0 :pen true}]
+           vm (old-state :vm)]
       ;(print "state:" state)
       (if (> (count l) 0)
         (let [form (clojure.string/split (first l) #"\ ")
               form-fn (get fns (first form))
-              [new-state new-path] (if form-fn (apply form-fn state (rest form)) [state nil])]
+              [new-vm-state new-path] (if form-fn (apply form-fn vm (rest form)) [vm nil])]
           ;(print "ran" form)
           (recur
             (rest l)
             (if new-path (conj path new-path) path)
-            new-state))
-        [path state]))))
+            new-vm-state))
+        (assoc old-state :path path :vm vm :code code)))))
 
 (def default-style {:fill "none" :stroke "#41A4E6" :stroke-width "1px" :stroke-linecap "round"})
 
@@ -70,6 +75,7 @@
    [:line {:x1 0 :y1 0 :x2 0 :y2 3 :style {:stroke "#eee" :stroke-width 2}}]])
 
 (defn component-svg-turtle [vm]
+  (print vm)
   [:g (if (> (count vm) 0) {:transform (str "translate(" (get (vm :pos) 0) " " (get (vm :pos) 1) ") rotate(" (* -1 (vm :angle) (/ 180 m.PI)) ")")})
    [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 40 L 20 0 Z" 5 false)}]])
 
@@ -119,9 +125,10 @@
 ;; Initialize app
 
 (defn mount-root []
-  (let [app-state (atom {:code ""
+  (let [blank-vm {:pos [0 0] :angle 0 :pen true}
+        app-state (atom {:code ""
                          :path []
-                         :vm {}
+                         :vm blank-vm
                          :size [(.-innerWidth js/window) (.-innerHeight js/window)]})
         changes (chan)]
     (reagent/render [component-oglo app-state changes] (.getElementById js/document "app"))
@@ -129,13 +136,11 @@
              (let [[c change] (<! changes)]
                ;(print "change:" c change)
                (case c
-                 :code (let [[new-path new-vm-state] (path-render change)]
-                         ;(print "new path:" new-path)
-                         ;(print "new state:" new-vm-state)
+                 :code (let [updated-state (path-render (assoc @app-state :vm blank-vm) change)]
                          (swap! app-state assoc
                                 :code change
-                                :path new-path
-                                :vm new-vm-state
+                                :path (updated-state :path)
+                                :vm (updated-state :vm)
                                 :size [(.-innerWidth js/window) (.-innerHeight js/window)]))))
              (recur))))
 
