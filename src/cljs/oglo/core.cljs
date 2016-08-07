@@ -134,6 +134,7 @@
                          :size [(.-innerWidth js/window) (.-innerHeight js/window)]})
         changes (chan)]
     (reagent/render [component-oglo app-state changes] (.getElementById js/document "app"))
+    (.focus (.getElementById js/document "code-input"))
     (go-loop []
              (let [[c change] (<! changes)]
                ;(print "change:" c change)
