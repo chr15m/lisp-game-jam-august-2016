@@ -18,8 +18,8 @@
   (let [a (or (get args 0) 1)]
     [(assoc state :angle (direction (state :angle) (* (/ m.PI 2) a))) nil]))
 
-(defn pen-fn [pen state args]
-  [(assoc state :pen false) nil])
+(defn vis-fn [what show state args]
+  [(assoc state what show) nil])
 
 (def fns
   {"f" (fn [{:keys [pos angle pen] :as state} args]
@@ -29,8 +29,10 @@
          [(assoc state :pos [xn yn]) [(if pen "L" "M") xn yn]]))
    "r" (partial turn-fn +)
    "l" (partial turn-fn -)
-   "u" (partial pen-fn false)
-   "d" (partial pen-fn true)
+   "u" (partial vis-fn :pen false)
+   "d" (partial vis-fn :pen true)
+   "h" (partial vis-fn :turtle false)
+   "s" (partial vis-fn :turtle true)
    nil (fn [state args] [state nil])})
 
 (defn path-render [old-state code]
@@ -75,9 +77,9 @@
    [:line {:x1 0 :y1 0 :x2 0 :y2 3 :style {:stroke "#eee" :stroke-width 2}}]])
 
 (defn component-svg-turtle [vm]
-  (print vm)
-  [:g (if (> (count vm) 0) {:transform (str "translate(" (get (vm :pos) 0) " " (get (vm :pos) 1) ") rotate(" (* -1 (vm :angle) (/ 180 m.PI)) ")")})
-   [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 40 L 20 0 Z" 5 false)}]])
+  (when (vm :turtle)
+    [:g (if (> (count vm) 0) {:transform (str "translate(" (get (vm :pos) 0) " " (get (vm :pos) 1) ") rotate(" (* -1 (vm :angle) (/ 180 m.PI)) ")")})
+     [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 40 L 20 0 Z" 5 false)}]]))
 
 (defn component-svg-code-rendered [path]
   (let [path-rendered (clojure.string/join " " (map #(clojure.string/join " " %) path))]
@@ -125,7 +127,7 @@
 ;; Initialize app
 
 (defn mount-root []
-  (let [blank-vm {:pos [0 0] :angle 0 :pen true}
+  (let [blank-vm {:pos [0 0] :angle 0 :pen true :turtle true}
         app-state (atom {:code ""
                          :path []
                          :vm blank-vm
