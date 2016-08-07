@@ -11,9 +11,6 @@
 (def tau (* m.PI 2))
 (def step 10)
 
-(defn g-trans [x y]
-  {:transform (str "translate(" x "," y ")")})
-
 (defn turn-fn [direction {:keys [angle] :as state} args]
   (let [a (or (get args 0) 1)]
     [(assoc state :angle (direction (state :angle) (* (/ m.PI 2) a))) nil]))
