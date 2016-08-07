@@ -69,17 +69,17 @@
   [:pattern {:id "hatch" :width 3 :height 3 :patternTransform "rotate(45 0 0)" :patternUnits "userSpaceOnUse"}
    [:line {:x1 0 :y1 0 :x2 0 :y2 3 :style {:stroke "#eee" :stroke-width 2}}]])
 
-(defn component-svg-turtle [state]
-  [:g (if (> (count @state) 0) {:transform (str "translate(" (get (@state :pos) 0) " " (get (@state :pos) 1) ") rotate(" (* -1 (@state :angle) (/ 180 m.PI)) ")")})
+(defn component-svg-turtle [vm]
+  [:g (if (> (count vm) 0) {:transform (str "translate(" (get (vm :pos) 0) " " (get (vm :pos) 1) ") rotate(" (* -1 (vm :angle) (/ 180 m.PI)) ")")})
    [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 40 L 20 0 Z" 5 false)}]])
 
 (defn component-svg-code-rendered [path]
-  (let [path-rendered (clojure.string/join " " (map #(clojure.string/join " " %) @path))]
+  (let [path-rendered (clojure.string/join " " (map #(clojure.string/join " " %) path))]
     [:g
      [:path {:fill "none" :stroke "#eee" :stroke-width "2" :d path-rendered}]]))
 
 (defn component-code-input [changes code]
-  [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
+  [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value code :on-change #(put! changes [:code (-> % .-target .-value)])}])
 
 (defn component-svg-start-help [help oh ow]
   (if help
@@ -96,9 +96,10 @@
        (when @v [:div#help-text {:dangerouslySetInnerHTML  {:__html (pre-markdown "Help.md")}}])
        [:a {:id "help" :on-click #(swap! v not)} "?"]])))
 
-(defn component-oglo [changes code path state size]
-  (let [[ow oh] (map #(/ % 2) @size)
-        help (or (not @code) (= @code ""))]
+(defn component-oglo [state changes]
+  (let [{:keys [code path vm size]} @state
+        [ow oh] (map #(/ % 2) size)
+        help (or (not code) (= code ""))]
     [:div
      [:svg {:width "100%" :height "100%" :style {:top "0px" :left "0px" :position "absolute"}}
       [:defs
@@ -108,7 +109,7 @@
        ;[:path {:fill "none" :stroke "#eee" :d "M 100 100 L 101 101"}]
        [component-svg-start-help help oh ow]
        [:g {:transform "scale(1,-1)"}
-        [component-svg-turtle state]
+        [component-svg-turtle vm]
         [component-svg-code-rendered path]]]]
      [component-help]
      [component-code-input changes code]
@@ -118,22 +119,24 @@
 ;; Initialize app
 
 (defn mount-root []
-  (let [code (atom "")
-        path (atom [])
-        state (atom {})
-        size (atom [(.-innerWidth js/window) (.-innerHeight js/window)])
+  (let [app-state (atom {:code ""
+                         :path []
+                         :vm {}
+                         :size [(.-innerWidth js/window) (.-innerHeight js/window)]})
         changes (chan)]
-    (reagent/render [component-oglo changes code path state size] (.getElementById js/document "app"))
+    (reagent/render [component-oglo app-state changes] (.getElementById js/document "app"))
     (go-loop []
              (let [[c change] (<! changes)]
                ;(print "change:" c change)
                (case c
-                 :code (let [[new-path new-state] (path-render change)]
-                         (print "new path:" new-path)
-                         (print "new state:" new-state)
-                         (reset! path new-path)
-                         (reset! state new-state)
-                         (reset! code change))))
+                 :code (let [[new-path new-vm-state] (path-render change)]
+                         ;(print "new path:" new-path)
+                         ;(print "new state:" new-vm-state)
+                         (swap! app-state assoc
+                                :code change
+                                :path new-path
+                                :vm new-vm-state
+                                :size [(.-innerWidth js/window) (.-innerHeight js/window)]))))
              (recur))))
 
 (defn init! []
