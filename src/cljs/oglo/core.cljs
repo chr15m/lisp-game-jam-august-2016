@@ -9,19 +9,41 @@
 
 (def m js/Math)
 (def tau (* m.PI 2))
+(def step 10)
 
 (defn g-trans [x y]
   {:transform (str "translate(" x "," y ")")})
 
-(defn render-path [old-path new-code]
+(defn turn-fn [direction {:keys [angle] :as state} args]
+  (let [a (or (get args 0) 1)]
+    [(assoc state :angle (direction (state :angle) (* (/ m.PI 2) a))) nil]))
+
+(def fns
+  {"f" (fn [{:keys [pos angle] :as state} args]
+         (let [d (or (get args 0) 1)
+               xn (+ (* (m.sin angle) d step) (get pos 0))
+               yn (+ (* (m.cos angle) d step) (get pos 1))]
+         [(assoc state :pos [xn yn]) ["L" xn yn]]))
+   "r" (partial turn-fn +)
+   "l" (partial turn-fn -)
+   nil (fn [state args] [state nil])})
+
+(defn path-render [new-code]
   (let [lines (clojure.string/split new-code #"\r?\n")]
     (loop [l lines
-           path ""]
+           path [["M" 0 0]]
+           state {:pos [0 0] :angle 0 :pen true}]
+      ;(print "state:" state)
       (if (> (count l) 0)
-        (let [form (first l)]
-          (print "form" (clojure.string/split form " "))
-          (recur (rest l) ""))
-        path))))
+        (let [form (clojure.string/split (first l) #"\ ")
+              form-fn (get fns (first form))
+              [new-state new-path] (if form-fn (apply form-fn state (rest form)) [state nil])]
+          ;(print "ran" form)
+          (recur
+            (rest l)
+            (if new-path (conj path new-path) path)
+            new-state))
+        [path state]))))
 
 (def default-style {:fill "none" :stroke "#41A4E6" :stroke-width "1px" :stroke-linecap "round"})
 
@@ -47,13 +69,14 @@
   [:pattern {:id "hatch" :width 3 :height 3 :patternTransform "rotate(45 0 0)" :patternUnits "userSpaceOnUse"}
    [:line {:x1 0 :y1 0 :x2 0 :y2 3 :style {:stroke "#eee" :stroke-width 2}}]])
 
-(defn component-svg-turtle [[x y]]
-  [:g {:transform (str "translate(" x "," y ")")}
-   [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 -40 L 20 0 Z" 5 false)}]])
+(defn component-svg-turtle [state]
+  [:g (if (> (count @state) 0) {:transform (str "translate(" (get (@state :pos) 0) " " (get (@state :pos) 1) ") rotate(" (* -1 (@state :angle) (/ 180 m.PI)) ")")})
+   [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d (js/roundPathCorners "M 0 0 L -20 0 L 0 40 L 20 0 Z" 5 false)}]])
 
-(defn component-svg-code-rendered [code]
-  [:g
-   [:path {:fill "url(#hatch)" :stroke "#eee" :stroke-width "2" :d ""}]])
+(defn component-svg-code-rendered [path]
+  (let [path-rendered (clojure.string/join " " (map #(clojure.string/join " " %) @path))]
+    [:g
+     [:path {:fill "none" :stroke "#eee" :stroke-width "2" :d path-rendered}]]))
 
 (defn component-code-input [changes code]
   [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value @code :on-change #(put! changes [:code (-> % .-target .-value)])}])
@@ -73,7 +96,7 @@
        (when @v [:div#help-text {:dangerouslySetInnerHTML  {:__html (pre-markdown "Help.md")}}])
        [:a {:id "help" :on-click #(swap! v not)} "?"]])))
 
-(defn component-oglo [changes code rendered-path size]
+(defn component-oglo [changes code path state size]
   (let [[ow oh] (map #(/ % 2) @size)
         help (or (not @code) (= @code ""))]
     [:div
@@ -82,9 +105,11 @@
        (component-svg-filter-glow)
        (component-svg-pattern-hatch)]
       [:g {:transform (str "translate(" ow "," oh ")") :filter "url(#glowfilter)"}
+       ;[:path {:fill "none" :stroke "#eee" :d "M 100 100 L 101 101"}]
        [component-svg-start-help help oh ow]
-       [component-svg-turtle [0 0]]
-       [component-svg-code-rendered rendered-path]]]
+       [:g {:transform "scale(1,-1)"}
+        [component-svg-turtle state]
+        [component-svg-code-rendered path]]]]
      [component-help]
      [component-code-input changes code]
      [component-start-help help]]))
@@ -94,15 +119,21 @@
 
 (defn mount-root []
   (let [code (atom "")
-        rendered-path (atom "")
+        path (atom [])
+        state (atom {})
         size (atom [(.-innerWidth js/window) (.-innerHeight js/window)])
         changes (chan)]
-    (reagent/render [component-oglo changes code rendered-path size] (.getElementById js/document "app"))
+    (reagent/render [component-oglo changes code path state size] (.getElementById js/document "app"))
     (go-loop []
              (let [[c change] (<! changes)]
-               (print "change:" c change)
-               (cond
-                 (= c :code) (do (swap! rendered-path render-path change) (reset! code change))))
+               ;(print "change:" c change)
+               (case c
+                 :code (let [[new-path new-state] (path-render change)]
+                         (print "new path:" new-path)
+                         (print "new state:" new-state)
+                         (reset! path new-path)
+                         (reset! state new-state)
+                         (reset! code change))))
              (recur))))
 
 (defn init! []
