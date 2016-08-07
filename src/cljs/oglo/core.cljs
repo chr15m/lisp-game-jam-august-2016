@@ -24,8 +24,8 @@
 (def fns
   {"f" (fn [{:keys [pos angle pen] :as state} args]
          (let [d (or (get args 0) 1)
-               xn (+ (* (m.sin angle) d step) (get pos 0))
-               yn (+ (* (m.cos angle) d step) (get pos 1))]
+               xn (m.round (+ (* (m.sin angle) d step) (get pos 0)))
+               yn (m.round (+ (* (m.cos angle) d step) (get pos 1)))]
          [(assoc state :pos [xn yn]) [(if pen "L" "M") xn yn]]))
    "r" (partial turn-fn +)
    "l" (partial turn-fn -)
