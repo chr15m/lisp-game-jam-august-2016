@@ -7,8 +7,8 @@ r = right turn
 l = left turn
 u = pen up
 d = pen down
-c = color
-l = loop
+h = hide turtle
+s = show turtle
 ```
 
 ## example ##
