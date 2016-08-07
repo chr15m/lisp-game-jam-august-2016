@@ -84,7 +84,7 @@
      [:path {:fill "none" :stroke "#eee" :stroke-width "2" :d path-rendered}]]))
 
 (defn component-code-input [changes code]
-  [:textarea {:id "code-input" :cols 10 :rows 5 :placeholder "f 1" :value code :on-change #(put! changes [:code (-> % .-target .-value)])}])
+  [:textarea {:id "code-input" :cols 10 :rows (m.max 5 (+ (count (clojure.string/split code #"\r?\n")) 1)) :placeholder "f 1" :value code :on-change #(put! changes [:code (-> % .-target .-value)])}])
 
 (defn component-svg-start-help [help oh ow]
   (if help

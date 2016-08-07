@@ -28,6 +28,7 @@ a:hover {
 
 textarea {
   resize: none;
+  max-height: 90%;
 }
 
 #code-input {
